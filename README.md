@@ -135,3 +135,6 @@ pytest -q -m integration
 - `CATCHAT_AUTO_BOOTSTRAP_ON_STARTUP=0`：关闭启动时自动从前端配置引导房间
 
 更多后端规则、模块细节、复盘说明请查看 `backend/README.md`。
+
+狼人杀效果图示：
+<img width="717" height="11294" alt="AI_Agent狼人杀2" src="https://github.com/user-attachments/assets/9a584462-12a2-46b4-8a51-3535a1663396" />
