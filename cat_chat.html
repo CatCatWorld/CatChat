@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐱 喵星人AI聊天室</title>
+    <style>
+        :root {
+            --bg-primary: #fef6e4; --bg-secondary: #fff8f0; --bg-chat: #ffffff;
+            --accent-pink: #f582ae; --accent-orange: #ff8c42; --accent-purple: #8bd3dd;
+            --accent-green: #a8d8a8; --accent-yellow: #ffd803; --accent-red: #e74c3c;
+            --text-primary: #2d334a; --text-secondary: #6b7280;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.06); --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+            --radius-sm: 12px; --radius-md: 18px; --radius-lg: 24px;
+            --sidebar-width: 320px; --topbar-height: 64px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; }
+        .app-container { display: flex; height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { width: var(--sidebar-width); background: var(--bg-secondary); border-right: 1px solid rgba(0,0,0,0.06); display: flex; flex-direction: column; flex-shrink: 0; box-shadow: var(--shadow-sm); z-index: 10; }
+        .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid rgba(0,0,0,0.06); }
+        .sidebar-header h1 { font-size: 22px; background: linear-gradient(135deg, var(--accent-pink), var(--accent-orange)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .sidebar-header p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+
+        /* Mode */
+        .mode-section { padding: 12px 20px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+        .mode-section>label { font-size: 12px; font-weight: 600; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 8px; }
+        .mode-cards { display: flex; gap: 8px; flex-wrap: wrap; }
+        .mode-card { flex: 1; padding: 10px 8px; border: 2px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); background: var(--bg-primary); cursor: pointer; text-align: center; transition: all 0.2s; }
+        .mode-card:hover { border-color: rgba(0,0,0,0.15); }
+        .mode-card.active { border-color: var(--accent-pink); background: rgba(245,130,174,0.06); box-shadow: 0 0 0 3px rgba(245,130,174,0.15); }
+        .mode-card .mode-icon { font-size: 24px; }
+        .mode-card .mode-label { font-size: 12px; font-weight: 600; margin-top: 4px; }
+
+        /* Debate Panel */
+        .debate-panel { margin: 0 20px 12px; padding: 14px; background: linear-gradient(135deg, #7c2d12, #9a3412); border-radius: var(--radius-sm); color: white; display: none; }
+        .debate-panel.active { display: block; }
+        .db-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+        .db-info { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 10px; line-height: 1.5; }
+        .db-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .db-btn { padding: 8px 14px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .db-btn-start { background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; }
+        .db-btn-start:hover { box-shadow: 0 4px 12px rgba(239,68,68,0.4); }
+        .db-btn-next { background: var(--accent-orange); color: white; }
+        .db-btn-end { background: rgba(255,255,255,0.15); color: white; }
+        .db-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .db-status { margin-top: 10px; padding: 10px 12px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; line-height: 1.8; }
+        .db-order-list { display: flex; flex-direction: column; gap: 4px; }
+        .db-order-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 13px; cursor: grab; transition: all 0.2s; user-select: none; }
+        .db-order-item:hover { background: rgba(255,255,255,0.18); }
+        .db-order-item.speaking { background: rgba(245,158,11,0.4); border: 1px solid rgba(245,158,11,0.6); animation: pulse 1.5s infinite; }
+        .db-order-item.done { opacity: 0.5; }
+        .db-order-item .db-order-num { width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+        .db-order-item.speaking .db-order-num { background: #f59e0b; color: #7c2d12; }
+        .db-round-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #f59e0b; color: #7c2d12; }
+        .db-turn-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.3); font-size: 12px; margin-top: 6px; }
+        .system-message.debate-msg { background: linear-gradient(135deg, #ea580c, #dc2626); color: white; }
+        .system-message.debate-turn-msg { background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; }
+
+
+        /* Werewolf Panel */
+        .werewolf-panel { margin: 0 20px 12px; padding: 14px; background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: var(--radius-sm); color: white; display: none; }
+        .werewolf-panel.active { display: block; }
+        .wp-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+        .wp-info { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 10px; line-height: 1.5; }
+        .wp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .wp-btn { padding: 8px 14px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .wp-btn-start { background: var(--accent-red); color: white; }
+        .wp-btn-next { background: var(--accent-orange); color: white; }
+        .wp-btn-reveal { background: var(--accent-purple); color: var(--text-primary); }
+        .wp-btn-end { background: rgba(255,255,255,0.15); color: white; }
+        .wp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .wp-status { margin-top: 10px; padding: 8px 12px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 12px; line-height: 1.6; }
+        .wp-phase-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .wp-phase-night { background: #2c3e50; color: #f39c12; }
+        .wp-phase-day { background: #f39c12; color: #2c3e50; }
+        .wp-phase-vote { background: #e74c3c; color: white; }
+
+        .role-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+        .role-badge.werewolf { background: #e74c3c; color: white; }
+        .role-badge.villager { background: #27ae60; color: white; }
+        .role-badge.seer { background: #8e44ad; color: white; }
+        .role-badge.witch { background: #2980b9; color: white; }
+        .role-badge.hunter { background: #d35400; color: white; }
+        .role-badge.guard { background: #16a085; color: white; }
+        .wf-msg.role-hidden .sender-role-badge { display: none; }
+
+        .add-cat-btn { margin: 16px 20px; padding: 14px; background: linear-gradient(135deg, var(--accent-pink), var(--accent-orange)); color: white; border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(245,130,174,0.3); }
+        .add-cat-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245,130,174,0.4); }
+        .import-export-bar { display: flex; gap: 8px; margin: 0 20px 12px; }
+        .ie-btn { flex: 1; padding: 10px; border: 2px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); background: var(--bg-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .ie-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); transform: translateY(-1px); }
+        .members-title { padding: 8px 20px; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .members-list { flex: 1; overflow-y: auto; padding: 0 12px; }
+
+        /* Right Member Panel */
+        .right-panel { width: 260px; background: var(--bg-secondary); border-left: 1px solid rgba(0,0,0,0.06); display: flex; flex-direction: column; flex-shrink: 0; box-shadow: var(--shadow-sm); z-index: 10; transition: width 0.25s ease, opacity 0.25s ease; overflow: hidden; }
+        .right-panel.collapsed { width: 0; opacity: 0; pointer-events: none; }
+        .right-panel .members-title { padding: 16px 16px 8px; }
+        .right-panel .members-list { padding: 0 8px; }
+        .right-panel .member-card { padding: 8px 10px; margin-bottom: 4px; }
+        .right-panel .member-avatar { width: 36px; height: 36px; font-size: 18px; }
+        .right-panel .member-info { margin-left: 10px; }
+        .right-panel .member-name { font-size: 13px; }
+        .right-panel .member-role { font-size: 11px; }
+        .right-panel .member-status { left: 36px; top: 34px; }
+        .member-toggle { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--accent-purple); background: none; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--accent-purple); transition: all 0.2s; font-family: inherit; margin-left: 8px; }
+        .member-toggle:hover, .member-toggle.active { background: var(--accent-purple); color: white; }
+        .member-card { display: flex; align-items: center; padding: 12px; border-radius: var(--radius-sm); margin-bottom: 6px; cursor: default; transition: background 0.2s; position: relative; }
+        .member-card:hover { background: rgba(0,0,0,0.03); }
+        .member-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+        .member-info { margin-left: 12px; flex: 1; min-width: 0; }
+        .member-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .member-role { font-size: 12px; color: var(--text-secondary); margin-top: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+        .member-status { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-green); border: 2px solid var(--bg-secondary); position: absolute; left: 44px; top: 42px; }
+        .member-status.offline { background: #9ca3af; }
+        .member-remove { opacity: 0; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 8px; transition: all 0.2s; }
+        .member-card:hover .member-remove { opacity: 1; }
+        .member-remove:hover { background: rgba(231,76,60,0.1); }
+
+        .settings-section { border-top: 1px solid rgba(0,0,0,0.06); padding-top: 16px; margin-top: 6px; }
+        .settings-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer; padding: 8px 0; user-select: none; }
+        .settings-toggle:hover { color: var(--accent-pink); }
+
+        /* Main Area */
+        .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .chat-header { height: var(--topbar-height); background: var(--bg-chat); border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; padding: 0 24px; box-shadow: var(--shadow-sm); justify-content: space-between; }
+        .chat-header-info h2 { font-size: 17px; }
+        .chat-header-info span { font-size: 13px; color: var(--text-secondary); }
+        .judge-toggle { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--accent-orange); background: none; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--accent-orange); transition: all 0.2s; font-family: inherit; }
+        .judge-toggle.active { background: var(--accent-orange); color: white; }
+        .judge-toggle:hover { background: var(--accent-orange); color: white; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+
+        /* Messages */
+        .message { display: flex; gap: 12px; max-width: 75%; animation: messageIn 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes messageIn { from { opacity:0; transform:translateY(16px) scale(0.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+        .message.user-message { align-self: flex-end; flex-direction: row-reverse; }
+        .message-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+        .message-content { display: flex; flex-direction: column; gap: 4px; }
+        .message-sender { font-size: 12px; font-weight: 600; color: var(--text-secondary); padding: 0 4px; }
+        .user-message .message-sender { text-align: right; }
+        .message-bubble { padding: 12px 18px; border-radius: var(--radius-md); font-size: 14.5px; line-height: 1.6; box-shadow: var(--shadow-sm); position: relative; word-wrap: break-word; }
+        .user-message .message-bubble { background: linear-gradient(135deg, var(--accent-pink), var(--accent-orange)); color: white; border-bottom-right-radius: 6px; }
+        .cat-message .message-bubble { background: var(--bg-chat); border: 1px solid rgba(0,0,0,0.06); border-bottom-left-radius: 6px; }
+        .message-thinking { font-size: 12px; color: var(--text-secondary); font-style: italic; padding: 0 4px; display: flex; align-items: center; gap: 6px; }
+        .thinking-dots span { display: inline-block; width: 6px; height: 6px; background: var(--accent-pink); border-radius: 50%; animation: bounce 1.4s infinite; }
+        .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-8px); } }
+        .message-time { font-size: 11px; color: #bbb; padding: 0 4px; }
+        .user-message .message-time { text-align: right; }
+
+        .message-hidden .message-bubble { background: repeating-linear-gradient(45deg,#f0f0f0,#f0f0f0 10px,#e8e8e8 10px,#e8e8e8 20px) !important; color: #ccc !important; font-style: italic; user-select: none; border: 1px dashed #ddd !important; }
+        .message-hidden .message-avatar { filter: grayscale(0.8) opacity(0.5); }
+        .message-hidden .message-sender { color: #ccc; }
+        .message-night .message-bubble { background: linear-gradient(135deg,#1a1a2e,#16213e) !important; color: #f0e68c !important; border: 1px solid #2c3e50 !important; }
+
+        .system-message { align-self: center; background: rgba(0,0,0,0.04); padding: 6px 16px; border-radius: 20px; font-size: 12px; color: var(--text-secondary); max-width: none; white-space: pre-line; text-align: center; }
+        .system-message.night-msg { background: linear-gradient(135deg,#1a1a2e,#16213e); color: #f0e68c; border: 1px solid #2c3e50; }
+        .system-message.day-msg { background: linear-gradient(135deg,#f39c12,#e67e22); color: white; }
+        .system-message.vote-msg { background: linear-gradient(135deg,#e74c3c,#c0392b); color: white; }
+        .system-message.judge-settle-msg { background: linear-gradient(135deg,#f59e0b,#f97316); color: #1f2937; border: 1px solid rgba(31,41,55,0.25); font-weight: 700; }
+
+        /* Input */
+        .chat-input-area { position: relative; padding: 16px 24px; background: var(--bg-chat); border-top: 1px solid rgba(0,0,0,0.06); }
+        .input-wrapper { display: flex; gap: 12px; align-items: flex-end; background: var(--bg-primary); border-radius: var(--radius-md); padding: 8px 8px 8px 18px; box-shadow: var(--shadow-sm); border: 2px solid transparent; transition: border-color 0.3s; }
+        .input-wrapper:focus-within { border-color: var(--accent-pink); }
+        .input-wrapper textarea { flex: 1; border: none; background: none; resize: none; font-size: 14.5px; font-family: inherit; color: var(--text-primary); max-height: 120px; min-height: 24px; line-height: 1.5; padding: 6px 0; outline: none; }
+        .input-wrapper textarea::placeholder { color: #bbb; }
+        .send-btn { width: 44px; height: 44px; border-radius: 50%; border: none; background: linear-gradient(135deg, var(--accent-pink), var(--accent-orange)); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; flex-shrink: 0; }
+        .send-btn:hover { transform: scale(1.08); box-shadow: 0 4px 12px rgba(245,130,174,0.4); }
+
+        /* Mention Popup */
+        .mention-popup { display: none; position: absolute; bottom: 100%; left: 18px; right: 18px; background: white; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); border: 1px solid rgba(0,0,0,0.08); max-height: 200px; overflow-y: auto; z-index: 50; margin-bottom: 6px; }
+        .mention-popup.active { display: block; animation: mentionIn 0.15s ease; }
+        @keyframes mentionIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        .mention-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.15s; font-size: 14px; }
+        .mention-item:hover, .mention-item.active { background: rgba(245,130,174,0.08); }
+        .mention-item .mention-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+        .mention-item .mention-name { font-weight: 600; }
+        .mention-item .mention-model { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+
+        /* Cat Config Tooltip */
+        .cat-tooltip { position: fixed; z-index: 999; background: white; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); border: 1px solid rgba(0,0,0,0.08); padding: 16px; min-width: 260px; max-width: 340px; pointer-events: auto; animation: tooltipIn 0.18s ease; }
+        @keyframes tooltipIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .cat-tooltip .tt-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+        .cat-tooltip .tt-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .cat-tooltip .tt-name { font-weight: 700; font-size: 15px; flex: 1; }
+        .cat-tooltip .tt-edit-btn { padding: 4px 12px; border: none; border-radius: 8px; background: linear-gradient(135deg, var(--accent-pink), var(--accent-orange)); color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .cat-tooltip .tt-edit-btn:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(245,130,174,0.4); }
+        .cat-tooltip .tt-row { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; padding: 4px 0; line-height: 1.5; }
+        .cat-tooltip .tt-label { color: var(--text-secondary); font-weight: 600; white-space: nowrap; min-width: 60px; }
+        .cat-tooltip .tt-value { color: var(--text-primary); word-break: break-all; }
+        .cat-tooltip .tt-value.tt-masked { font-family: 'Consolas','Courier New',monospace; letter-spacing: 1px; color: #999; }
+        .cat-tooltip .tt-personality { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.06); font-size: 12px; color: var(--text-secondary); line-height: 1.6; max-height: 80px; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Edit Cat Modal */
+        .edit-cat-modal .edit-provider-cards { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+        .edit-cat-modal .edit-prov-btn { padding: 6px 12px; border: 2px solid rgba(0,0,0,0.08); border-radius: 8px; background: var(--bg-primary); font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .edit-cat-modal .edit-prov-btn:hover { border-color: rgba(0,0,0,0.15); }
+        .edit-cat-modal .edit-prov-btn.selected { border-color: var(--accent-pink); background: rgba(245,130,174,0.06); }
+        .edit-cat-modal .edit-model-presets { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+        .edit-cat-modal .edit-preset-btn { padding: 3px 8px; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; background: var(--bg-primary); font-size: 11px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+        .edit-cat-modal .edit-preset-btn:hover { border-color: var(--accent-pink); background: rgba(245,130,174,0.06); }
+
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; backdrop-filter: blur(4px); }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal { background: white; border-radius: var(--radius-lg); width: 520px; max-width: 90vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); transform: scale(0.9) translateY(20px); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+        .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+        .modal-header { padding: 24px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+        .modal-header h3 { font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .modal-close { width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(0,0,0,0.05); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .modal-close:hover { background: rgba(0,0,0,0.1); }
+        .modal-body { padding: 20px 28px 28px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 16px; border: 2px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; color: var(--text-primary); background: var(--bg-primary); transition: border-color 0.3s; outline: none; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent-pink); }
+        .form-group .hint { font-size: 12px; color: #aaa; margin-top: 6px; }
+        .emoji-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+        .emoji-option { width: 92px; border-radius: 12px; border: 2px solid rgba(0,0,0,0.08); background: var(--bg-primary); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px 6px; transition: all 0.2s; }
+        .emoji-option:hover { transform: translateY(-2px); }
+        .emoji-option.selected { border-color: var(--accent-pink); background: rgba(245,130,174,0.1); box-shadow: 0 0 0 3px rgba(245,130,174,0.2); }
+        .emoji-option .emoji-label { font-size: 11px; line-height: 1.3; color: var(--text-secondary); text-align: center; word-break: break-word; }
+        .cat-avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+        .cat-avatar-img.cat-face { object-position: center 38%; transform: scale(1.18); }
+        .emoji-option .cat-avatar-img { width: 54px; height: 54px; }
+        .member-avatar .cat-avatar-img,
+        .message-avatar .cat-avatar-img,
+        .mention-avatar .cat-avatar-img,
+        .cat-tooltip .tt-avatar .cat-avatar-img { width: 100%; height: 100%; border-radius: inherit; }
+        .avatar-preview { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(0,0,0,0.08); background: #f5f5f5; display: flex; align-items: center; justify-content: center; }
+        .avatar-upload-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+        .avatar-upload-btn { padding: 8px 12px; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; background: #fff; font-size: 12px; cursor: pointer; }
+        .avatar-upload-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); }
+        .color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+        .color-option { width: 36px; height: 36px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: all 0.2s; }
+        .color-option:hover { transform: scale(1.15); }
+        .color-option.selected { border-color: var(--text-primary); box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
+        .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
+        .btn-cancel { flex: 1; padding: 14px; border: 2px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); background: none; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text-primary); }
+        .btn-cancel:hover { background: rgba(0,0,0,0.04); }
+        .btn-confirm { flex: 1; padding: 14px; border: none; border-radius: var(--radius-sm); background: linear-gradient(135deg, var(--accent-pink), var(--accent-orange)); color: white; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; box-shadow: 0 4px 12px rgba(245,130,174,0.3); }
+        .btn-confirm:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,130,174,0.4); }
+
+        .provider-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+        .provider-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px; border: 2px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); background: var(--bg-primary); cursor: pointer; transition: all 0.2s; text-align: center; }
+        .provider-card:hover { border-color: rgba(0,0,0,0.15); transform: translateY(-1px); }
+        .provider-card.selected { border-color: var(--accent-pink); background: rgba(245,130,174,0.06); box-shadow: 0 0 0 3px rgba(245,130,174,0.15); }
+        .provider-card .provider-icon { font-size: 28px; }
+        .provider-card .provider-label { font-size: 12px; font-weight: 600; }
+        .provider-card .provider-desc { font-size: 10px; color: var(--text-secondary); line-height: 1.3; }
+        .api-config-panel { margin-top: 16px; padding: 16px; background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid rgba(0,0,0,0.06); }
+        .api-config-panel .panel-title { font-size: 13px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+        .api-config-panel .form-group { margin-bottom: 12px; }
+        .api-config-panel .form-group:last-child { margin-bottom: 0; }
+        .api-config-panel .form-group input, .api-config-panel .form-group select { background: white; }
+        .model-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .model-preset-btn { padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.1); background: white; font-size: 12px; cursor: pointer; transition: all 0.2s; color: var(--text-secondary); font-family: inherit; }
+        .model-preset-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); }
+
+        .provider-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; color: white; }
+        .provider-badge.openai { background: #10a37f; }
+        .provider-badge.claude { background: #d97706; }
+        .provider-badge.glm { background: #3b82f6; }
+        .provider-badge.siliconflow { background: #7c3aed; }
+
+        .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-secondary); gap: 12px; }
+        .empty-state .big-emoji { font-size: 72px; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        .empty-state h3 { font-size: 18px; color: var(--text-primary); }
+        .empty-state p { font-size: 14px; max-width: 300px; text-align: center; line-height: 1.6; }
+
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+        .toast { background: white; padding: 14px 20px; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); font-size: 14px; display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease; border-left: 4px solid var(--accent-pink); }
+        @keyframes slideIn { from { opacity:0; transform:translateX(100px); } to { opacity:1; transform:translateX(0); } }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -100%; top: 0; height: 100vh; z-index: 100; transition: left 0.3s; }
+            .sidebar.open { left: 0; }
+            .right-panel { position: fixed; right: -100%; top: 0; height: 100vh; z-index: 100; width: 260px; transition: right 0.3s; }
+            .right-panel:not(.collapsed) { right: 0; }
+            .right-panel.collapsed { right: -100%; width: 260px; opacity: 1; }
+            .mobile-toggle { display: flex !important; }
+            .message { max-width: 88%; }
+            .provider-cards { grid-template-columns: repeat(2,1fr); }
+        }
+        .mobile-toggle { display: none; width: 40px; height: 40px; border: none; background: none; font-size: 22px; cursor: pointer; margin-right: 12px; border-radius: 8px; align-items: center; justify-content: center; }
+
+        /* Pipeline Panel */
+        .pipeline-panel { margin: 0 20px 12px; padding: 14px; background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: var(--radius-sm); color: white; display: none; }
+        .pipeline-panel.active { display: block; }
+        .pp-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+        .pp-info { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 10px; line-height: 1.5; }
+        .pp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .pp-btn { padding: 8px 14px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .pp-btn-start { background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; }
+        .pp-btn-start:hover { box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+        .pp-btn-reset { background: rgba(255,255,255,0.15); color: white; }
+        .pp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pp-status { margin-top: 10px; padding: 10px 12px; background: rgba(255,255,255,0.08); border-radius: 8px; font-size: 12px; line-height: 1.8; }
+        .pp-step { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .pp-step-badge { display: inline-flex; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .pp-step-waiting { background: #475569; color: #94a3b8; }
+        .pp-step-active { background: #3b82f6; color: white; animation: pulse 1.5s infinite; }
+        .pp-step-done { background: #22c55e; color: white; }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+        .pp-requirement { margin-top: 10px; }
+        .pp-requirement textarea { width: 100%; padding: 10px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.08); color: white; font-size: 13px; font-family: inherit; resize: vertical; min-height: 80px; outline: none; }
+        .pp-requirement textarea:focus { border-color: #6366f1; }
+        .pp-requirement textarea::placeholder { color: rgba(255,255,255,0.4); }
+        .pp-role-assign { margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.8; }
+        .pp-role-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+        .pp-role-dev { background: #3b82f6; color: white; }
+        .pp-role-review { background: #f59e0b; color: #1e293b; }
+        .pp-role-test { background: #10b981; color: white; }
+
+        /* CLI Proxy */
+        .cli-proxy-info { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px; background: rgba(0,0,0,0.03); padding: 10px 12px; border-radius: 8px; }
+        .cli-proxy-info code { background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'Consolas','Monaco',monospace; font-size: 11px; color: var(--accent-pink); }
+        .cli-status { width: 8px; height: 8px; border-radius: 50%; background: #ccc; margin-left: 8px; display: inline-block; transition: background 0.3s; }
+        .cli-status.connected { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+        .cli-status.error { background: #ef4444; }
+        .cli-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+        .cli-switch input { opacity: 0; width: 0; height: 0; }
+        .cli-slider { position: absolute; cursor: pointer; inset: 0; background: #ccc; border-radius: 24px; transition: 0.3s; }
+        .cli-slider:before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        .cli-switch input:checked + .cli-slider { background: var(--accent-green); }
+        .cli-switch input:checked + .cli-slider:before { transform: translateX(20px); }
+        .cli-conn-status { font-size: 12px; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; line-height: 1.5; }
+        .cli-conn-status.success { background: rgba(34,197,94,0.1); color: #16a34a; border: 1px solid rgba(34,197,94,0.2); }
+        .cli-conn-status.error { background: rgba(239,68,68,0.1); color: #dc2626; border: 1px solid rgba(239,68,68,0.2); }
+        .cli-test-btn { width: 100%; padding: 8px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; background: var(--bg-primary); font-size: 13px; cursor: pointer; transition: all 0.2s; font-family: inherit; color: var(--text-primary); }
+        .cli-test-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); }
+
+        .system-message.pipeline-msg { background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; }
+        .system-message.pipeline-dev-msg { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; }
+        .system-message.pipeline-review-msg { background: linear-gradient(135deg, #d97706, #f59e0b); color: #1e293b; }
+        .system-message.pipeline-test-msg { background: linear-gradient(135deg, #059669, #10b981); color: white; }
+
+        /* Monitor Panel */
+        .monitor-panel { margin: 0 20px 12px; padding: 14px; background: linear-gradient(135deg, #111827, #1f2937); border-radius: var(--radius-sm); color: white; display: none; }
+        .monitor-panel.active { display: block; }
+        .mn-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+        .mn-info { font-size: 12px; color: rgba(255,255,255,0.72); margin-bottom: 10px; line-height: 1.5; }
+        .mn-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .mn-row .form-group { margin-bottom: 0; flex: 1; }
+        .mn-row input, .mn-row select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: white; font-size: 12px; font-family: inherit; }
+        .mn-row input::placeholder { color: rgba(255,255,255,0.4); }
+        .mn-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+        .mn-btn { padding: 7px 12px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .mn-btn-main { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; }
+        .mn-btn-sub { background: rgba(255,255,255,0.16); color: white; }
+        .mn-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .mn-status { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+        .mn-card { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 8px; font-size: 11px; line-height: 1.5; max-height: 120px; overflow-y: auto; }
+        .mn-card-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.78); margin-bottom: 4px; }
+        .mn-list-item { font-size: 11px; line-height: 1.45; margin-bottom: 4px; word-break: break-all; }
+        .mn-log { max-height: 120px; overflow-y: auto; }
+        .mn-config { white-space: pre-wrap; word-break: break-word; font-family: 'Consolas','Monaco',monospace; font-size: 10px; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>🐱 喵星人聊天室</h1>
+            <p>与 AI 猫猫们一起聊天</p>
+        </div>
+        <div class="mode-section">
+            <label>聊天模式</label>
+            <div class="mode-cards">
+                <div class="mode-card active" data-mode="discuss" onclick="switchMode('discuss')"><div class="mode-icon">💬</div><div class="mode-label">讨论模式</div></div>
+                <div class="mode-card" data-mode="debate" onclick="switchMode('debate')"><div class="mode-icon">🎯</div><div class="mode-label">辩论赛</div></div>
+                <div class="mode-card" data-mode="werewolf" onclick="switchMode('werewolf')"><div class="mode-icon">🐺</div><div class="mode-label">狼人杀</div></div>
+                <div class="mode-card" data-mode="pipeline" onclick="switchMode('pipeline')"><div class="mode-icon">🏗️</div><div class="mode-label">流水线</div></div>
+                <div class="mode-card" data-mode="monitor" onclick="switchMode('monitor')"><div class="mode-icon">🛰️</div><div class="mode-label">联动观测</div></div>
+            </div>
+        </div>
+        <div class="debate-panel" id="debatePanel">
+            <div class="db-title">🎯 辩论赛控制台</div>
+            <div class="db-info">铲屎官出议题，猫猫们按顺序轮流发言。每只猫说完后才轮到下一只。</div>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label style="color:rgba(255,255,255,0.7);font-size:12px;">辩论轮数</label>
+                <select id="debateRounds" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-size:13px;font-family:inherit;">
+                    <option value="1">1 轮</option>
+                    <option value="2" selected>2 轮</option>
+                    <option value="3">3 轮</option>
+                    <option value="5">5 轮</option>
+                    <option value="0">无限</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label style="color:rgba(255,255,255,0.7);font-size:12px;">发言顺序</label>
+                <div id="debateOrder" class="db-order-list"></div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;">拖拽调整顺序，或添加猫猫后自动排序</div>
+            </div>
+            <div class="db-actions">
+                <button class="db-btn db-btn-start" id="dbStartBtn" onclick="debateStart()">🏁 开始辩论</button>
+                <button class="db-btn db-btn-next" id="dbNextBtn" onclick="debateForceNext()" disabled>⏭ 催促发言</button>
+                <button class="db-btn db-btn-end" id="dbEndBtn" onclick="debateEnd()" disabled>⏹ 结束辩论</button>
+            </div>
+            <div class="db-status" id="dbStatus" style="display:none;"></div>
+        </div>
+        <div class="werewolf-panel" id="werewolfPanel">
+            <div class="wp-title">🌙 狼人杀控制台</div>
+            <div class="wp-info">铲屎官担任法官，可看到所有发言。<br>猫猫们互相看不到彼此发言。</div>
+            <div style="margin:8px 0;padding:8px 10px;background:rgba(255,255,255,0.06);border-radius:8px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:white;font-size:13px;">
+                    <input type="checkbox" id="wpAiGodToggle" onchange="wpToggleAiGod()" style="width:16px;height:16px;accent-color:#ff6b6b;"/>
+                    <span>🤖 AI 法官</span>
+                    <span style="font-size:11px;color:rgba(255,255,255,0.5);">（由LLM驱动法官旁白与裁决）</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:white;font-size:13px;margin-top:8px;">
+                    <input type="checkbox" id="wpHideNightRole" onchange="wpToggleNightRoleMask()" style="width:16px;height:16px;accent-color:#ffd803;" checked/>
+                    <span>🎭 夜晚观众隐藏身份标签</span>
+                    <span style="font-size:11px;color:rgba(255,255,255,0.5);">（法官视角仍可见）</span>
+                </label>
+                <div id="wpAiGodConfig" style="display:none;margin-top:8px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="color:#ff6b6b;font-size:11px;">选择法官猫猫</label>
+                        <select id="wpGodCatId" onchange="monitorOnGodCatChange('wp')" style="font-size:12px;padding:4px 6px;"></select>
+                    </div>
+                    <div style="font-size:11px;color:#ff6b6b;opacity:0.7;margin-top:4px;">⚡ AI法官将直接复用所选猫猫的模型配置（API/Key/模型）。</div>
+                </div>
+            </div>
+            <div class="wp-actions">
+                <button class="wp-btn wp-btn-start" id="wpStartBtn" onclick="werewolfStart()">🎮 开始游戏</button>
+                <button class="wp-btn wp-btn-next" id="wpNextBtn" onclick="werewolfNextPhase()" disabled>⏭ 下一阶段</button>
+                <button class="wp-btn wp-btn-reveal" id="wpRevealBtn" onclick="werewolfRevealAll()" disabled>👁 公开角色</button>
+                <button class="wp-btn wp-btn-end" id="wpEndBtn" onclick="werewolfEnd()" disabled>⏹ 结束游戏</button>
+            </div>
+            <div class="wp-status" id="wpStatus" style="display:none;"></div>
+        </div>
+        <div class="pipeline-panel" id="pipelinePanel">
+            <div class="pp-title">🏗️ 代码全栈流水线</div>
+            <div class="pp-info">铲屎官提需求 → 猫1设计开发 → 猫2代码检视 → 猫3测试报告</div>
+            <div class="pp-requirement">
+                <textarea id="pipelineRequirement" placeholder="请输入需求详细描述...&#10;例如：用 Python 实现一个 JWT 认证中间件，支持 token 签发、验证和刷新，包含错误处理和日志记录。"></textarea>
+            </div>
+            <div class="pp-role-assign" id="ppRoleAssign"></div>
+            <div class="pp-actions">
+                <button class="pp-btn pp-btn-start" id="ppStartBtn" onclick="pipelineStart()">🚀 启动流水线</button>
+                <button class="pp-btn pp-btn-reset" id="ppResetBtn" onclick="pipelineReset()" disabled>🔄 重置</button>
+            </div>
+            <div class="pp-status" id="ppStatus" style="display:none;"></div>
+        </div>
+        <div class="monitor-panel" id="monitorPanel">
+            <div class="mn-title">🛰️ 联动观测台</div>
+            <div class="mn-info">与狼人杀联动使用后端统一编排：由后端读取环境变量完成建房/拉起/注册，前端仅触发流程并观察结果。</div>
+            <div class="mn-row">
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">后端地址</label><input id="monitorApiBase" type="text" placeholder="http://127.0.0.1:8000"/></div>
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">猫猫数量（自动）</label><select id="monitorPlayerCount"><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11" selected>11</option><option value="12">12</option></select></div>
+            </div>
+            <div class="mn-row">
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">房间ID</label><input id="monitorRoomId" type="text" placeholder="创建后自动填充"/></div>
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">视角</label><select id="monitorViewMode" onchange="monitorChangeView()"><option value="god">god</option></select></div>
+            </div>
+            <div class="mn-row">
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">Agent主机</label><input id="monitorAgentHost" type="text" placeholder="http://127.0.0.1" value="http://127.0.0.1"/></div>
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">起始端口</label><input id="monitorAgentStartPort" type="number" min="1" max="65535" value="9101"/></div>
+            </div>
+            <div class="mn-row">
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">模型 API URL</label><input id="monitorModelApiUrl" type="text" placeholder="https://.../v1/chat/completions"/></div>
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">模型 API Key</label><input id="monitorModelApiKey" type="password" placeholder="sk-..."/></div>
+            </div>
+            <div class="mn-row">
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">模型名称</label><input id="monitorModelName" type="text" placeholder="gpt-4o-mini / qwen-max"/></div>
+                <div class="form-group"><label style="color:rgba(255,255,255,0.72);font-size:12px;">可选CLI命令</label><input id="monitorCliCommand" type="text" placeholder="留空=默认API调用"/></div>
+            </div>
+            <div class="mn-row" style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;">
+                <div class="form-group" style="flex:0 0 auto;align-items:center;">
+                    <label style="color:rgba(255,255,255,0.72);font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                        <input type="checkbox" id="monitorAiGod" style="width:16px;height:16px;accent-color:#ff6b6b;"/>
+                        <span>🤖 AI 法官</span>
+                    </label>
+                </div>
+                <div class="form-group" style="flex:0 0 auto;align-items:center;">
+                    <label style="color:rgba(255,255,255,0.72);font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                        <input type="checkbox" id="monitorShowThought" onchange="monitorToggleThoughtVisibility()" style="width:16px;height:16px;accent-color:#22c55e;" checked/>
+                        <span>🧠 监控显示思考内容</span>
+                    </label>
+                </div>
+            </div>
+            <div id="monitorGodConfig" style="display:none;">
+                <div class="mn-row">
+                    <div class="form-group"><label style="color:#ff6b6b;font-size:12px;">选择法官猫猫</label><select id="monitorGodCatId" onchange="monitorOnGodCatChange('monitor')"></select></div>
+                </div>
+                <div class="mn-info" style="font-size:11px;color:#ff6b6b;opacity:0.8;margin-top:2px;">⚡ AI法官会复用所选猫猫配置驱动旁白与裁决，无需额外填写。</div>
+            </div>
+            <div class="mn-actions">
+                <button class="mn-btn mn-btn-main" onclick="monitorCreateRoom()">🏠 后端编排启动</button>
+                <button class="mn-btn mn-btn-main" onclick="monitorRegisterAgents()">🤖 后端重建并拉起</button>
+                <button class="mn-btn mn-btn-main" onclick="monitorConnectWs()">🔌 连接WS</button>
+                <button class="mn-btn mn-btn-sub" onclick="monitorSaveEnvProfile()">💾 保存到环境变量</button>
+                <button class="mn-btn mn-btn-sub" id="monitorForceApplyBtn" onclick="monitorForceApplyEnvProfile()">🚀 强制同步并应用</button>
+                <button class="mn-btn mn-btn-sub" onclick="monitorReloadEnvProfile()">📥 从环境变量重载</button>
+                <span id="envSaveStatus" style="font-size:11px;color:rgba(255,255,255,0.5);align-self:center;margin-left:4px;"></span>
+                <button class="mn-btn mn-btn-sub" onclick="monitorStartGame()">▶️ 开始游戏</button>
+                <button class="mn-btn mn-btn-sub" onclick="monitorAdvance()">⏭️ 推进阶段</button>
+                <button class="mn-btn mn-btn-sub" onclick="monitorLoadConfig()">📦 配置快照</button>
+                <button class="mn-btn mn-btn-sub" onclick="monitorLoadAgents()">🩺 Agent状态</button>
+                <button class="mn-btn mn-btn-sub" onclick="monitorLoadChildProcesses()">🧩 子进程状态</button>
+            </div>
+            <div class="mn-status">
+                <div class="mn-card"><div class="mn-card-title">全局状态</div><div id="monitorGlobal">未连接</div></div>
+                <div class="mn-card"><div class="mn-card-title">上帝身份表盘</div><div id="monitorGodBoard" class="mn-log"></div></div>
+                <div class="mn-card"><div class="mn-card-title">健康矩阵</div><div id="monitorHealth" class="mn-log"></div></div>
+                <div class="mn-card"><div class="mn-card-title">阶段日志</div><div id="monitorPhaseLog" class="mn-log"></div></div>
+                <div class="mn-card"><div class="mn-card-title">发言时间轴</div><div id="monitorSpeech" class="mn-log"></div></div>
+            </div>
+            <div class="mn-card" style="margin-top:8px;"><div class="mn-card-title">配置快照</div><div id="monitorConfig" class="mn-config">暂无</div></div>
+        </div>
+        <button class="add-cat-btn" onclick="openAddCatModal()"><span>➕</span> 添加一只猫猫</button>
+        <div class="import-export-bar">
+            <button class="ie-btn" onclick="exportCats()">📤 导出配置</button>
+            <button class="ie-btn" onclick="importCatsClick()">📥 导入配置</button>
+            <input type="file" id="importCatsFile" accept=".json" style="display:none;" onchange="importCatsFile(event)"/>
+        </div>
+        <div class="settings-section" style="padding:16px 20px;">
+            <div class="settings-toggle" onclick="toggleCliProxy()">🖥️ <span>本地 CLI 代理</span><span class="cli-status" id="cliStatusDot"></span><span id="cliArrow" style="margin-left:auto;">▶</span></div>
+            <div id="cliProxySettings" style="display:none;margin-top:12px;">
+                <div class="cli-proxy-info">通过本地 CLI 代理转发请求，解决 CORS 跨域问题。<br>先运行 <code>node cat_chat_cli.js</code> 启动代理。</div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label>代理地址</label>
+                    <input type="text" id="cliProxyUrl" placeholder="http://localhost:3456" value="http://localhost:3456"/>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <label class="cli-switch"><input type="checkbox" id="cliProxyEnabled" onchange="onCliProxyToggle()"><span class="cli-slider"></span></label>
+                    <span style="font-size:13px;font-weight:600;" id="cliProxyLabel">未启用</span>
+                </div>
+                <div class="cli-conn-status" id="cliConnStatus" style="display:none;"></div>
+                <button class="cli-test-btn" onclick="testCliConnection()">🔗 测试连接</button>
+            </div>
+        </div>
+        <div class="settings-section" style="padding:16px 20px;">
+            <div class="settings-toggle" onclick="toggleGlobalSettings()">⚙️ <span>全局 API 设置</span><span id="settingsArrow" style="margin-left:auto;">▶</span></div>
+            <div id="globalSettings" style="display:none;margin-top:12px;">
+                <div class="form-group" style="margin-bottom:10px;"><label>默认 Provider</label><select id="globalProvider"><option value="openai">OpenAI 兼容</option><option value="claude">Claude</option><option value="glm">GLM 智谱</option><option value="siliconflow">硅基流动</option></select></div>
+                <div class="form-group" style="margin-bottom:10px;"><label>默认 API Key</label><input type="password" id="globalApiKey" placeholder="填入你的 API Key"/></div>
+                <div class="form-group" style="margin-bottom:0;"><label>默认模型</label><input type="text" id="globalModel" placeholder="gpt-4o-mini / claude-sonnet-4-20250514 / glm-4-flash"/></div>
+            </div>
+        </div>
+        <div class="settings-section" style="padding:16px 20px;">
+            <div class="settings-toggle" onclick="toggleTtsSettings()">🔊 <span>语音播报设置</span><span id="ttsArrow" style="margin-left:auto;">▶</span></div>
+            <div id="ttsSettings" style="display:none;margin-top:12px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <label class="cli-switch"><input type="checkbox" id="ttsEnabled" onchange="onTtsEnabledToggle()"><span class="cli-slider"></span></label>
+                    <span style="font-size:13px;font-weight:600;" id="ttsEnabledLabel">已启用</span>
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label>语速 <span id="ttsRateValue" style="color:var(--text-secondary);margin-left:6px;">1.00x</span></label>
+                    <input type="range" id="ttsRate" min="0.6" max="1.6" step="0.05" value="1" oninput="onTtsRateInput()"/>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>音量 <span id="ttsVolumeValue" style="color:var(--text-secondary);margin-left:6px;">100%</span></label>
+                    <input type="range" id="ttsVolume" min="0" max="1" step="0.05" value="1" oninput="onTtsVolumeInput()"/>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main-area">
+        <div class="chat-header">
+            <div style="display:flex;align-items:center;">
+                <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+                <div class="chat-header-info">
+                    <h2 id="chatTitle">🏠 猫猫大厅 · 讨论模式</h2>
+                    <span id="onlineCount">1 位铲屎官在线</span>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <button class="judge-toggle" id="judgeToggle" style="display:none;" onclick="toggleJudgeView()">👁 法官视角</button>
+                <button class="member-toggle active" id="memberToggle" onclick="toggleRightPanel()">👥 成员</button>
+            </div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state" id="emptyState"><div class="big-emoji">🐾</div><h3>欢迎来到喵星人聊天室！</h3><p>点击左侧「添加一只猫猫」，接入 AI 模型，让猫猫们加入聊天吧～</p></div>
+        </div>
+        <div class="chat-input-area">
+            <div class="mention-popup" id="mentionPopup"></div>
+            <div class="input-wrapper">
+                <textarea id="messageInput" placeholder="说点什么吧，猫猫们在等你喵～" rows="1" onkeydown="handleInputKeydown(event)" oninput="handleInputChange(this)"></textarea>
+                <button class="send-btn" onclick="sendMessage()">🐾</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Member Panel -->
+    <div class="right-panel" id="rightPanel">
+        <div class="members-title">成员列表 · <span id="memberCount">0</span> 只猫猫</div>
+        <div class="members-list" id="membersList"></div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="addCatModal">
+    <div class="modal">
+        <div class="modal-header"><h3>🐱 添加新猫猫</h3><button class="modal-close" onclick="closeAddCatModal()">✕</button></div>
+        <div class="modal-body">
+            <div class="form-group"><label>猫猫名字</label><input type="text" id="catName" placeholder="例如：橘座、布丁、大橘..." maxlength="20"/></div>
+            <div class="form-group"><label>选择猫猫头像</label><div class="emoji-picker" id="emojiPicker"></div></div>
+            <div class="form-group">
+                <label>自定义头像（可选）</label>
+                <input type="text" id="catAvatarUrl" placeholder="粘贴头像图片 URL（留空则用品种头像）" oninput="onCustomAvatarUrlInput()"/>
+                <div class="avatar-upload-row">
+                    <button class="avatar-upload-btn" onclick="uploadCatAvatarClick()" type="button">📁 上传本地头像</button>
+                    <input type="file" id="catAvatarFile" accept="image/*" style="display:none;" onchange="onCatAvatarFileChange(event)"/>
+                    <div class="avatar-preview" id="catAvatarPreview"></div>
+                </div>
+            </div>
+            <div class="form-group"><label>头像背景色</label><div class="color-picker" id="colorPicker"></div></div>
+            <div class="form-group"><label>猫猫性格（System Prompt）</label><textarea id="catPersonality" rows="3" placeholder="例如：你是一只高冷的英短蓝猫，说话很酷但内心渴望被摸头..."></textarea><div class="hint">描述猫猫性格特点，AI 会按照此性格回复</div></div>
+            <div class="form-group">
+                <label>AI 提供商</label>
+                <div class="provider-cards">
+                    <div class="provider-card selected" data-provider="openai" onclick="selectProvider('openai')"><div class="provider-icon">🟢</div><div class="provider-label">OpenAI</div><div class="provider-desc">GPT & 兼容接口</div></div>
+                    <div class="provider-card" data-provider="claude" onclick="selectProvider('claude')"><div class="provider-icon">🟠</div><div class="provider-label">Claude</div><div class="provider-desc">Anthropic 系列</div></div>
+                    <div class="provider-card" data-provider="glm" onclick="selectProvider('glm')"><div class="provider-icon">🔵</div><div class="provider-label">GLM</div><div class="provider-desc">智谱 ChatGLM</div></div>
+                    <div class="provider-card" data-provider="siliconflow" onclick="selectProvider('siliconflow')"><div class="provider-icon">🟣</div><div class="provider-label">硅基流动</div><div class="provider-desc">SiliconFlow</div></div>
+                </div>
+            </div>
+            <div class="api-config-panel">
+                <div class="panel-title" id="apiPanelTitle">🟢 OpenAI 接口配置</div>
+                <div class="form-group"><label>API 地址</label><input type="text" id="catApiUrl"/><div class="hint" id="apiUrlHint"></div></div>
+                <div class="form-group"><label>API Key</label><input type="password" id="catApiKey" placeholder="留空则使用全局设置"/></div>
+                <div class="form-group"><label>模型名称</label><input type="text" id="catModel"/><div class="model-presets" id="modelPresets"></div></div>
+                <div class="form-group" id="claudeVersionGroup" style="display:none;"><label>API 版本</label><input type="text" id="claudeApiVersion" value="2023-06-01"/><div class="hint">Claude anthropic-version 头部</div></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeAddCatModal()">取消</button>
+                <button class="btn-confirm" onclick="addCat()">🐾 添加猫猫</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Edit Cat Modal -->
+<div class="modal-overlay" id="editCatModal">
+    <div class="modal edit-cat-modal">
+        <div class="modal-header"><h3>✏️ 编辑猫猫档案</h3><button class="modal-close" onclick="closeEditCatModal()">✕</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="editCatId"/>
+            <div class="form-group"><label>猫猫名字</label><input type="text" id="editCatName" maxlength="20"/></div>
+            <div class="form-group"><label>猫猫品种标签</label><input type="text" id="editCatBreed" maxlength="30" placeholder="例如：英国短毛猫 / 自定义猫猫"/></div>
+            <div class="form-group">
+                <label>自定义头像（可选）</label>
+                <input type="text" id="editCatAvatarUrl" placeholder="粘贴头像图片 URL" oninput="onEditCatAvatarUrlInput()"/>
+                <div class="avatar-upload-row">
+                    <button class="avatar-upload-btn" onclick="uploadEditCatAvatarClick()" type="button">📁 上传本地头像</button>
+                    <input type="file" id="editCatAvatarFile" accept="image/*" style="display:none;" onchange="onEditCatAvatarFileChange(event)"/>
+                    <div class="avatar-preview" id="editCatAvatarPreview"></div>
+                </div>
+            </div>
+            <div class="form-group"><label>猫猫性格（System Prompt）</label><textarea id="editCatPersonality" rows="3"></textarea></div>
+            <div class="form-group">
+                <label>AI 提供商</label>
+                <div class="edit-provider-cards" id="editProviderCards"></div>
+            </div>
+            <div class="form-group"><label>API 地址</label><input type="text" id="editCatApiUrl"/><div class="hint" id="editApiUrlHint"></div></div>
+            <div class="form-group"><label>API Key</label><input type="password" id="editCatApiKey" placeholder="留空则使用全局设置"/></div>
+            <div class="form-group"><label>模型名称</label><input type="text" id="editCatModel"/><div class="edit-model-presets" id="editModelPresets"></div></div>
+            <div class="form-group" id="editClaudeVersionGroup" style="display:none;"><label>API 版本</label><input type="text" id="editClaudeApiVersion"/><div class="hint">Claude anthropic-version 头部</div></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeEditCatModal()">取消</button>
+                <button class="btn-confirm" onclick="saveEditCat()">💾 保存修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="cat_chat_script.js"></script>
+</body>
+</html>

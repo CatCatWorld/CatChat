@@ -1,0 +1,163 @@
+openapi: 3.1.0
+info:
+  title: Werewolf Backend API (Fragment)
+  version: 0.1.0
+paths:
+  /api/ai/rooms:
+    post:
+      summary: 创建AI猫猫对战房间
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                owner_nickname:
+                  type: string
+                  default: cat_01
+      responses:
+        '200':
+          description: 返回room_id与12个猫猫player_id
+  /api/rooms:
+    post:
+      summary: 创建房间
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner_nickname]
+              properties:
+                owner_nickname:
+                  type: string
+      responses:
+        '200':
+          description: 房间创建成功
+  /api/rooms/{room_id}/join:
+    post:
+      summary: 加入房间
+      parameters:
+        - name: room_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 加入成功
+  /api/rooms/{room_id}/night-action:
+    post:
+      summary: 夜晚行动提交
+      description: 狼人/守卫/女巫/预言家按当前阶段提交行动，服务端严格校验角色权限与目标合法性。
+  /api/rooms/{room_id}/vote:
+    post:
+      summary: 白天投票
+  /api/ai/rooms/{room_id}/agents/register:
+    post:
+      summary: 注册猫猫子Agent进程
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterAgentRequest'
+  /api/ai/rooms/{room_id}/agents/hot-swap:
+    post:
+      summary: 热替换故障猫猫子Agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotSwapAgentRequest'
+  /api/ai/rooms/{room_id}/agents/health:
+    get:
+      summary: 查询猫猫在线状态与调度指标
+  /api/ai/rooms/{room_id}/run-phase:
+    post:
+      summary: 上帝Agent推进单个阶段
+  /api/ai/rooms/{room_id}/run-to-end:
+    post:
+      summary: 上帝Agent自动运行到游戏结束
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                max_steps:
+                  type: integer
+                  default: 500
+  /api/replay/{record_id}:
+    get:
+      summary: 获取游戏复盘JSON包
+  /ws/{room_id}/{player_id}:
+    get:
+      summary: WebSocket实时通道
+      description: 接收阶段切换、状态快照、结果广播；可发送行动事件。
+
+components:
+  schemas:
+    RegisterAgentRequest:
+      type: object
+      required: [player_id, ipc_endpoint, model_type]
+      properties:
+        player_id:
+          type: string
+          example: cat_03
+        ipc_endpoint:
+          type: string
+          example: http://127.0.0.1:9103
+        model_type:
+          type: string
+          example: qwen-max
+        timeout_sec:
+          type: integer
+          default: 15
+    HotSwapAgentRequest:
+      allOf:
+        - $ref: '#/components/schemas/RegisterAgentRequest'
+        - type: object
+          properties:
+            reset_role_runtime_state:
+              type: boolean
+              default: true
+    CatActRequest:
+      type: object
+      required: [session_id, player_id, role, phase, visible_state, prompt_template]
+      properties:
+        session_id:
+          type: string
+          example: room_7788
+        player_id:
+          type: string
+          example: cat_03
+        role:
+          type: string
+          example: seer
+        phase:
+          type: string
+          example: night_action
+        visible_state:
+          type: object
+          additionalProperties: true
+        prompt_template:
+          type: string
+          example: '请返回JSON: {"target": "player_id"}'
+    CatActResponse:
+      type: object
+      required: [action, timestamp]
+      properties:
+        action:
+          type: object
+          properties:
+            target:
+              type: string
+              nullable: true
+        reasoning:
+          type: string
+          nullable: true
+        timestamp:
+          type: integer

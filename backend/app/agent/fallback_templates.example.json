@@ -1,0 +1,16 @@
+{
+  "night_wolf": {
+    "action": {
+      "type": "kill",
+      "target": "__RANDOM_ALIVE__"
+    },
+    "reasoning": "template/night_wolf"
+  },
+  "day_vote": {
+    "action": {
+      "type": "vote",
+      "target": "__RANDOM_ALIVE__"
+    },
+    "reasoning": "template/day_vote"
+  }
+}

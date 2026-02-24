@@ -1,0 +1,46 @@
+role_templates:
+  8:
+    wolves: 2
+    villagers: 2
+    seer: 1
+    witch: 1
+    hunter: 1
+    guardian: 1
+    fool: 0
+    night_order: ["werewolf", "guardian", "witch", "seer"]
+  9:
+    wolves: 3
+    villagers: 2
+    seer: 1
+    witch: 1
+    hunter: 1
+    guardian: 1
+    fool: 0
+    night_order: ["werewolf", "guardian", "witch", "seer"]
+  10:
+    wolves: 3
+    villagers: 3
+    seer: 1
+    witch: 1
+    hunter: 1
+    guardian: 1
+    fool: 0
+    night_order: ["werewolf", "guardian", "witch", "seer"]
+  11:
+    wolves: 3
+    villagers: 3
+    seer: 1
+    witch: 1
+    hunter: 1
+    guardian: 1
+    fool: 1
+    night_order: ["werewolf", "guardian", "witch", "seer"]
+  12:
+    wolves: 4
+    villagers: 4
+    seer: 1
+    witch: 1
+    hunter: 1
+    guardian: 1
+    fool: 0
+    night_order: ["werewolf", "guardian", "witch", "seer"]
