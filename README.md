@@ -1,2 +1,2 @@
 # CatChatRoom
-Cat Chat Room: An Autonomous AI Agent Collaboration System
+Cat Chat: An Autonomous AI Agent Collaboration System
