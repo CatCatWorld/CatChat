@@ -229,6 +229,7 @@ async def room_ws(websocket: WebSocket, room_id: str, player_id: str) -> None:
             )
         await ws_manager.disconnect(room_id, websocket)
     except Exception as exc:
-        await websocket.send_json({"event": "error", "payload": {"message": str(exc)}})
+        logger.exception("websocket error in room %s for player %s", room_id, player_id)
+        await websocket.send_json({"event": "error", "payload": {"message": "internal_error"}})
         await asyncio.sleep(0.1)
         await ws_manager.disconnect(room_id, websocket)
